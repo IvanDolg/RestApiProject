@@ -3,6 +3,7 @@ services:
     image: tms/c22
     build:
       context: .
+      dockerfile: Dockerfile
     container_name: app
     depends_on:
       - db

@@ -5,6 +5,7 @@ import com.example.restapiproject.configuration.UserPrincipal;
 import com.example.restapiproject.dto.UserDTO.LoginUserDto;
 import com.example.restapiproject.entity.Role;
 import com.example.restapiproject.entity.User;
+import com.example.restapiproject.mapper.UserMapper;
 import com.example.restapiproject.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,7 @@ public class UserController {
     private final UserService userService;
     private final JWTTokenProvider jwtTokenProvider;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final UserMapper userMapper;
 
     @PostMapping("/registration")
     public ResponseEntity<User> registration(@RequestBody User user) {
@@ -38,7 +40,9 @@ public class UserController {
         if (passwordEncoder.matches(dto.getPassword(), userPrincipal.getPassword())) {
             Set<Role> authorities = (Set<Role>) userPrincipal.getAuthorities();
             LocalDateTime time = LocalDateTime.now();
-            //mapper.mapToUser(dto).setLastVisitDate(time);
+            dto.setLastVisitDate(time);
+            userService.updateLastVisitDate(dto.getUsername(), time);
+            userMapper.toUser(dto);
             String token = jwtTokenProvider.generateToken(userPrincipal.getUsername(), userPrincipal.getPassword(), authorities);
             return ResponseEntity.ok(token);
         }

@@ -16,7 +16,10 @@ import java.util.Set;
 @Table(name = "tb_users")
 @AllArgsConstructor
 @NoArgsConstructor
-public class User extends AbstractEntity {
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "username", nullable = false)
     private String username;

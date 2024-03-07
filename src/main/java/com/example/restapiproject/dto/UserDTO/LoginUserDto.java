@@ -1,6 +1,5 @@
 package com.example.restapiproject.dto.UserDTO;
 
-import com.example.restapiproject.entity.AbstractEntity;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -14,14 +13,6 @@ import java.time.LocalDateTime;
 @Setter
 @ToString
 public class LoginUserDto {
-    private AbstractEntity abstractEntity;
-
-    public LoginUserDto() {
-    }
-    public LoginUserDto(AbstractEntity abstractEntity) {
-        this.abstractEntity = abstractEntity;
-    }
-
     @NotEmpty
     @NotBlank
     private Long id;

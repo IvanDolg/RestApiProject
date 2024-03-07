@@ -12,13 +12,15 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService, UserDetailsService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
-
+    @Override
     public User save(User user) {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.getRoles().add(Role.USER);
@@ -37,6 +39,10 @@ public class UserServiceImpl implements UserService, UserDetailsService {
                 .build();
 
         return userPrincipal;
+    }
 
+    @Override
+    public void updateLastVisitDate(String username, LocalDateTime lastVisitDate) {
+        userRepository.updateLastVisitDate(username, lastVisitDate);
     }
 }
