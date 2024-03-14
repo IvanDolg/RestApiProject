@@ -6,6 +6,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -15,19 +16,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.List;
-
-
 @RestController
 @RequestMapping("/schedule")
 @RequiredArgsConstructor
-public class Schedule {
+public class ScheduleController {
 
     @GetMapping("/{studentGroup}/{weekDay}")
     public ResponseEntity<String> getSchedule(@PathVariable("studentGroup") String studentGroup,
                                               @PathVariable("weekDay") String weekDay) {
-
         String currentWeekApiUrl = "https://iis.bsuir.by/api/v1/schedule/current-week";
         String apiUrl = "https://iis.bsuir.by/api/v1/schedule?studentGroup=" + studentGroup;
 
@@ -36,48 +32,37 @@ public class Schedule {
 
             HttpGet currentWeekHttpGet = new HttpGet(currentWeekApiUrl);
             HttpResponse currentWeekResponse = httpClient.execute(currentWeekHttpGet);
-            HttpEntity currentWeekEntity = currentWeekResponse.getEntity();
-            String currentWeekResponseBody = EntityUtils.toString(currentWeekEntity);
+            String currentWeekResponseBody = EntityUtils.toString(currentWeekResponse.getEntity());
             int currentWeek = Integer.parseInt(currentWeekResponseBody);
 
             HttpGet scheduleHttpGet = new HttpGet(apiUrl);
             HttpResponse scheduleResponse = httpClient.execute(scheduleHttpGet);
-            HttpEntity scheduleEntity = scheduleResponse.getEntity();
-            String responseBody = EntityUtils.toString(scheduleEntity);
+            String responseBody = EntityUtils.toString(scheduleResponse.getEntity());
 
             JSONObject responseObj = new JSONObject(responseBody);
             JSONObject schedulesObj = responseObj.getJSONObject("schedules");
 
-
             JSONArray scheduleArray = schedulesObj.getJSONArray(weekDay);
             JSONArray filteredScheduleArray = new JSONArray();
-            for (int i = 0; i < scheduleArray.length(); i++) {
-                JSONObject scheduleObj = scheduleArray.getJSONObject(i);
-                JSONArray weekNumberArray = scheduleObj.getJSONArray("weekNumber");
-                boolean containsCurrentWeek = false;
-                for (int j = 0; j < weekNumberArray.length(); j++) {
-                    int weekNumberValue = weekNumberArray.getInt(j);
-                    if (weekNumberValue == currentWeek) {
-                        containsCurrentWeek = true;
-                        break;
+
+            for (Object obj : scheduleArray) {
+                if (obj instanceof JSONObject) {
+                    JSONObject scheduleObj = (JSONObject) obj;
+                    JSONArray weekNumberArray = scheduleObj.getJSONArray("weekNumber");
+
+                    if (weekNumberArray.toList().contains(currentWeek)) {
+                        filteredScheduleArray.put(scheduleObj);
                     }
                 }
-                if (containsCurrentWeek) {
-                    filteredScheduleArray.put(scheduleObj);
+            }
+            JSONArray subjectsArray = new JSONArray();
+            for (Object obj : filteredScheduleArray) {
+                if (obj instanceof JSONObject) {
+                    JSONObject scheduleObj = (JSONObject) obj;
+                    subjectsArray.put(scheduleObj.getString("subject"));
                 }
             }
-
-            List<String> subjects = new ArrayList<>();
-            for (int i = 0; i < filteredScheduleArray.length(); i++) {
-                JSONObject scheduleObj = filteredScheduleArray.getJSONObject(i);
-                String subject = scheduleObj.getString("subject");
-                subjects.add(subject);
-            }
-
-            JSONArray subjectsArray = new JSONArray(subjects);
-            String subjectsJson = subjectsArray.toString();
-
-            return ResponseEntity.ok(subjectsJson);
+            return ResponseEntity.ok(subjectsArray.toString());
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body("Error occurred");
@@ -110,57 +95,38 @@ public class Schedule {
         String apiUrl = "https://iis.bsuir.by/api/v1/schedule?studentGroup=" + studentGroup;
 
         try {
-            HttpClient httpClient = HttpClientBuilder.create().build();
+            HttpClient httpClient = HttpClients.createDefault();
 
             HttpGet scheduleHttpGet = new HttpGet(apiUrl);
             HttpResponse scheduleResponse = httpClient.execute(scheduleHttpGet);
-            HttpEntity scheduleEntity = scheduleResponse.getEntity();
-            String responseBody = EntityUtils.toString(scheduleEntity);
+            String responseBody = EntityUtils.toString(scheduleResponse.getEntity());
 
             HttpGet currentWeekHttpGet = new HttpGet(currentWeekApiUrl);
             HttpResponse currentWeekResponse = httpClient.execute(currentWeekHttpGet);
-            HttpEntity currentWeekEntity = currentWeekResponse.getEntity();
-            String currentWeekResponseBody = EntityUtils.toString(currentWeekEntity);
+            String currentWeekResponseBody = EntityUtils.toString(currentWeekResponse.getEntity());
             int currentWeek = Integer.parseInt(currentWeekResponseBody);
 
             JSONObject responseObj = new JSONObject(responseBody);
             JSONObject schedulesObj = responseObj.getJSONObject("schedules");
 
-            JSONArray filteredScheduleArray = new JSONArray();
+            JSONObject scheduleByDayOfWeek = new JSONObject();
 
-            for (String key : schedulesObj.keySet()) {
-                JSONArray scheduleArray = schedulesObj.getJSONArray(key);
+            for (String dayOfWeek : schedulesObj.keySet()) {
+                JSONArray scheduleArray = schedulesObj.getJSONArray(dayOfWeek);
+
+                JSONArray subjectsArray = new JSONArray();
                 for (int i = 0; i < scheduleArray.length(); i++) {
                     JSONObject scheduleObj = scheduleArray.getJSONObject(i);
                     JSONArray weekNumberArray = scheduleObj.getJSONArray("weekNumber");
 
-                    // Проверка, содержит ли weekNumberArray текущую неделю
-                    boolean containsCurrentWeek = false;
-                    for (int j = 0; j < weekNumberArray.length(); j++) {
-                        int weekNumberValue = weekNumberArray.getInt(j);
-                        if (weekNumberValue == currentWeek) {
-                            containsCurrentWeek = true;
-                            break;
-                        }
-                    }
-
-                    if (containsCurrentWeek) {
-                        filteredScheduleArray.put(scheduleObj);
+                    if (weekNumberArray.toList().contains(currentWeek)) {
+                        subjectsArray.put(scheduleObj.getString("subject"));
                     }
                 }
+                scheduleByDayOfWeek.put(dayOfWeek, subjectsArray);
             }
 
-            List<String> subjects = new ArrayList<>();
-            for (int i = 0; i < filteredScheduleArray.length(); i++) {
-                JSONObject scheduleObj = filteredScheduleArray.getJSONObject(i);
-                String subject = scheduleObj.getString("subject");
-                subjects.add(subject);
-            }
-
-            JSONArray subjectsArray = new JSONArray(subjects);
-            String subjectsJson = subjectsArray.toString();
-
-            return ResponseEntity.ok(subjectsJson);
+            return ResponseEntity.ok(scheduleByDayOfWeek.toString());
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body("Error occurred");
